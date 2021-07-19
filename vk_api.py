@@ -36,6 +36,20 @@ def get_user_info(user_ids):
     print(resp)
 
 
+def _get_biggest_photo(photo_list):
+    '''Принимает на вход список фотографий разного размера и возвращает индекс фотографии максимального рамера'''
+    b_size = 0
+    index = 0
+    for element in photo_list:
+        size = element.get('height') * element.get('width')
+        if size > b_size:
+            b_size = size
+            index = photo_list.index(element)
+        else:
+            pass
+    return index
+
+
 def get_photos(user_id):
     '''Функция скачивания фотографий со страницы указанного пользователя и загрузки в Яндекс.Диск'''
     url = f"https://api.vk.com/method/photos.get"
@@ -51,24 +65,24 @@ def get_photos(user_id):
         if item.get('likes').get('count') not in fname_list:
             fname = item.get('likes').get('count')
             fname_list.append(fname)
-            data.append({"file_name": f'{fname}.jpg', 'size': item.get('sizes')[-1].get('type')})
-            r = requests.get(item.get('sizes')[-1].get('url'))
+            data.append({"file_name": f'{fname}.jpg', 'size': item.get('sizes')[_get_biggest_photo(item.get('sizes'))].get('type')})
+            r = requests.get(item.get('sizes')[_get_biggest_photo(item.get('sizes'))].get('url'))
             with open(fr'C:\netology_vk_api\{fname}.jpg', 'wb') as f:
                 f.write(r.content)
         else:
             fname = f"{item.get('likes').get('count')}_{item.get('id')}"
             fname_list.append(fname)
-            data.append({"file_name": f'{fname}.jpg', 'size': item.get('sizes')[-1].get('type')})
-            r = requests.get(item.get('sizes')[-1].get('url'))
+            data.append({"file_name": f'{fname}.jpg', 'size': item.get('sizes')[_get_biggest_photo(item.get('sizes'))].get('type')})
+            r = requests.get(item.get('sizes')[_get_biggest_photo(item.get('sizes'))].get('url'))
             with open(fr'C:\netology_vk_api\{fname}.jpg', 'wb') as f:
                 f.write(r.content)
     # Блок записи информации в json-файл.
     with open("data_file.json", "w") as write_file:
         json.dump(data, write_file)
     # Блок загрузки фотографий на Яндекс.Диск
-    for item in fname_list:
-        upload_file_to_disk(disk_file_path=f"netology_hw/vk_api/{item}/", filename=f"{item}.jpg")
+    # for item in fname_list:
+    #     upload_file_to_disk(disk_file_path=f"netology_hw/vk_api/{item}/", filename=f"{item}.jpg")
 
 
-get_user_info('begemot_korovin')
+# get_user_info('begemot_korovin')
 get_photos('552934290')
