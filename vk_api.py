@@ -14,7 +14,6 @@ def _get_upload_link(disk_file_path):
     headers = {'Authorization': token_ya}
     params = {"path": disk_file_path, "overwrite": True}
     response = requests.get(upload_url, headers=headers, params=params)
-    pprint(response.json())
     return response.json()
 
 
@@ -23,8 +22,6 @@ def upload_file_to_disk(disk_file_path, filename):
     href = _get_upload_link(disk_file_path=disk_file_path).get("href", "")
     response = requests.put(href, data=open(filename, 'rb'))
     response.raise_for_status()
-    if response.status_code == 201:
-        print("Success")
 
 
 def get_user_info(user_ids):
@@ -56,12 +53,14 @@ def get_photos(user_id):
     params = {'owner_id': user_id, 'album_id': 'profile', 'access_token': token, 'v': '5.131', 'extended': '1'}
     response = requests.get(url, params=params)
     resp = response.json()
-    pprint(resp.get('response').get('items'))
+    print(f"Найдено {len(resp.get('response').get('items'))} фотографий.")
     fname_list = []
     data = []
+    i = 0
     # Блок загрузки фото из VK, с кол-вом лайков в качестве имени файла.
     # Если у нескольких фото одинаковое кол-во лайков, к имени добавляется ID фотографии.
     for item in resp.get('response').get('items'):
+        i += 1
         if item.get('likes').get('count') not in fname_list:
             fname = item.get('likes').get('count')
             fname_list.append(fname)
@@ -69,6 +68,7 @@ def get_photos(user_id):
             r = requests.get(item.get('sizes')[_get_biggest_photo(item.get('sizes'))].get('url'))
             with open(fr'C:\netology_vk_api\{fname}.jpg', 'wb') as f:
                 f.write(r.content)
+            print(f"{fname}.jpg: фото загружено на жесткий диск ({round((i/len(resp.get('response').get('items')))*100, 2)}%)")
         else:
             fname = f"{item.get('likes').get('count')}_{item.get('id')}"
             fname_list.append(fname)
@@ -76,12 +76,16 @@ def get_photos(user_id):
             r = requests.get(item.get('sizes')[_get_biggest_photo(item.get('sizes'))].get('url'))
             with open(fr'C:\netology_vk_api\{fname}.jpg', 'wb') as f:
                 f.write(r.content)
+            print(f"{fname}.jpg: фото загружено на жесткий диск ({round((i/len(resp.get('response').get('items')))*100, 2)}%)")
     # Блок записи информации в json-файл.
     with open("data_file.json", "w") as write_file:
         json.dump(data, write_file)
     # Блок загрузки фотографий на Яндекс.Диск
-    # for item in fname_list:
-    #     upload_file_to_disk(disk_file_path=f"netology_hw/vk_api/{item}/", filename=f"{item}.jpg")
+    u = 0
+    for item in fname_list:
+        u += 1
+        upload_file_to_disk(disk_file_path=f"netology_hw/vk_api/{item}/", filename=f"{item}.jpg")
+        print(f"Файл {item} загружен на Яндекс.Диск ({round((u/len(fname_list))*100, 2)}%)")
 
 
 # get_user_info('begemot_korovin')
