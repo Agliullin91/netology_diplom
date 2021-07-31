@@ -1,15 +1,11 @@
 import requests
 from pprint import pprint
 import json
-# Токен VK(сервисный)
-token = '958eb5d439726565e9333aa30e50e0f937ee432e927f0dbd541c541887d919a7c56f95c04217915c32008'
-# Токен Яндекс.Диска
-with open('yandex_token.txt') as file:
-    token_ya = file.read()
+from config import token_vk, token_ya
 
 
 def _get_upload_link(disk_file_path):
-    '''Служебная функция для получения ссылки для загрузки в Яндекс.Диск'''
+    """Служебная функция для получения ссылки для загрузки в Яндекс.Диск"""
     upload_url = "https://cloud-api.yandex.net/v1/disk/resources/upload"
     headers = {'Authorization': token_ya}
     params = {"path": disk_file_path, "overwrite": True}
@@ -18,23 +14,27 @@ def _get_upload_link(disk_file_path):
 
 
 def upload_file_to_disk(disk_file_path, filename):
-    '''Функция для загрузки файла в Яндекс.Диск'''
+    """Функция для загрузки файла в Яндекс.Диск"""
     href = _get_upload_link(disk_file_path=disk_file_path).get("href", "")
     response = requests.put(href, data=open(filename, 'rb'))
     response.raise_for_status()
 
 
 def get_user_info(user_ids):
-    '''Функция для получения информации о пользователе по имени его страницы'''
+    """Функция для получения информации о пользователе по имени его страницы"""
     url = f"https://api.vk.com/method/users.get"
-    params = {'user_ids': user_ids, 'access_token': token, 'v': '5.131'}
+    params = {'user_ids': user_ids, 'access_token': token_vk, 'v': '5.131'}
     response = requests.get(url, params=params)
+    if response.status_code != 200:
+        print(f'Request error: {response.status_code}')
     resp = response.json()
-    print(resp)
+    if 'error' in resp:
+        print(f"Server responded with error")
+    return resp
 
 
 def _get_biggest_photo(photo_list):
-    '''Принимает на вход список фотографий разного размера и возвращает индекс фотографии максимального рамера'''
+    """Служебная. Принимает на вход список фотографий разного размера и возвращает индекс фотографии макс. рамера"""
     b_size = 0
     index = 0
     for element in photo_list:
@@ -42,25 +42,40 @@ def _get_biggest_photo(photo_list):
         if size > b_size:
             b_size = size
             index = photo_list.index(element)
-        else:
-            pass
     return index
 
 
+def _cr_json_datafile(data):
+    """Служебная. Записывает сформированные данные в JSON файл"""
+    with open("data_file.json", "w") as write_file:
+        json.dump(data, write_file)
+    print(f'JSON file created. {write_file}')
+
+
+def _upload_yadisc(fname_list):
+    """Служебная. Загружает фото на Я.диск"""
+    for u, item in enumerate(fname_list, start=1):
+        upload_file_to_disk(disk_file_path=f"netology_hw/vk_api/{item}/", filename=f"{item}.jpg")
+        print(f"Файл {item} загружен на Яндекс.Диск ({round((u/len(fname_list))*100, 2)}%)")
+
+
 def get_photos(user_id):
-    '''Функция скачивания фотографий со страницы указанного пользователя и загрузки в Яндекс.Диск'''
+    '''Основная функция. Скачивает фотографий со страницы указанного пользователя и загружает на Яндекс.Диск'''
     url = f"https://api.vk.com/method/photos.get"
-    params = {'owner_id': user_id, 'album_id': 'profile', 'access_token': token, 'v': '5.131', 'extended': '1'}
+    params = {'owner_id': user_id, 'album_id': 'profile', 'access_token': token_vk, 'v': '5.131', 'extended': '1'}
     response = requests.get(url, params=params)
+    if response.status_code != 200:
+        print(f'Request error: {response.status_code}')
     resp = response.json()
-    print(f"Найдено {len(resp.get('response').get('items'))} фотографий.")
+    if 'error' in resp:
+        print(f"Server responded with error: {resp.get('error')}")
+    else:
+        print(f"Найдено {len(resp.get('response').get('items'))} фотографий.")
     fname_list = []
     data = []
-    i = 0
     # Блок загрузки фото из VK, с кол-вом лайков в качестве имени файла.
     # Если у нескольких фото одинаковое кол-во лайков, к имени добавляется ID фотографии.
-    for item in resp.get('response').get('items'):
-        i += 1
+    for i, item in enumerate(resp.get('response').get('items'), start=1):
         if item.get('likes').get('count') not in fname_list:
             fname = item.get('likes').get('count')
             fname_list.append(fname)
@@ -78,15 +93,10 @@ def get_photos(user_id):
                 f.write(r.content)
             print(f"{fname}.jpg: фото загружено на жесткий диск ({round((i/len(resp.get('response').get('items')))*100, 2)}%)")
     # Блок записи информации в json-файл.
-    with open("data_file.json", "w") as write_file:
-        json.dump(data, write_file)
+    _cr_json_datafile(data)
     # Блок загрузки фотографий на Яндекс.Диск
-    u = 0
-    for item in fname_list:
-        u += 1
-        upload_file_to_disk(disk_file_path=f"netology_hw/vk_api/{item}/", filename=f"{item}.jpg")
-        print(f"Файл {item} загружен на Яндекс.Диск ({round((u/len(fname_list))*100, 2)}%)")
+    _upload_yadisc(fname_list)
 
 
-# get_user_info('begemot_korovin')
-get_photos('552934290')
+if __name__ == "__main__":
+    get_photos('552934290')
