@@ -21,15 +21,8 @@ def upload_file_to_disk(disk_file_path, filename):
 
 
 def get_user_info(user_ids):
-    """Функция для получения информации о пользователе по имени его страницы"""
-    url = f"https://api.vk.com/method/users.get"
-    params = {'user_ids': user_ids, 'access_token': token_vk, 'v': '5.131'}
-    response = requests.get(url, params=params)
-    if response.status_code != 200:
-        print(f'Request error: {response.status_code}')
-    resp = response.json()
-    if 'error' in resp:
-        print(f"Server responded with error")
+    '''Функция для получения информации о пользователе по имени его страницы'''
+    resp = _resp_check('users.get', params = {'user_ids': user_ids, 'access_token': token_vk, 'v': '5.131'})
     return resp
 
 
@@ -43,6 +36,20 @@ def _get_biggest_photo(photo_list):
             b_size = size
             index = photo_list.index(element)
     return index
+
+
+def _resp_check(method_name, params):
+    """Служебная. Функция обработки ошибок"""
+    url = f"https://api.vk.com/method/{method_name}"
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        return f'Request error: {response.status_code}'
+    else:
+        resp = response.json()
+        if 'error' in resp:
+            print(f"Server responded with error: {resp.get('error')}")
+        else:
+            return resp
 
 
 def _cr_json_datafile(data):
@@ -61,16 +68,7 @@ def _upload_yadisc(fname_list):
 
 def get_photos(user_id):
     '''Основная функция. Скачивает фотографий со страницы указанного пользователя и загружает на Яндекс.Диск'''
-    url = f"https://api.vk.com/method/photos.get"
-    params = {'owner_id': user_id, 'album_id': 'profile', 'access_token': token_vk, 'v': '5.131', 'extended': '1'}
-    response = requests.get(url, params=params)
-    if response.status_code != 200:
-        print(f'Request error: {response.status_code}')
-    resp = response.json()
-    if 'error' in resp:
-        print(f"Server responded with error: {resp.get('error')}")
-    else:
-        print(f"Найдено {len(resp.get('response').get('items'))} фотографий.")
+    resp = _resp_check('photos.get', params = {'owner_id': user_id, 'album_id': 'profile', 'access_token': token_vk, 'v': '5.131', 'extended': '1'})
     fname_list = []
     data = []
     # Блок загрузки фото из VK, с кол-вом лайков в качестве имени файла.
